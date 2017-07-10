@@ -74,6 +74,17 @@
     path: "{{ blackbox_exporter_root_dir }}/current"
     state: link
 
+- name: NODE_EXPORTER | Check for systemd
+  command: systemctl --version
+  register: systemd_check
+  changed_when: false
+  ignore_errors: true
+  when: systemd_check is not defined
+  tags:
+    - service
+    - configure
+
+
 - name: create systemd service unit
   template:
     src: etc/systemd/system/blackbox_exporter.service.j2
@@ -83,6 +94,22 @@
     mode: 0644
   notify:
     - restart blackbox_exporter
+  when: systemd_check|succeeded
+  tags:
+    - service
+
+- name: create SysV Init script
+  template:
+    src: etc/init.d/blackbox_exporter.j2
+    dest: /etc/init.d/blackbox_exporter
+    owner: root
+    group: root
+    mode: 0750
+  notify:
+    - restart blackbox_exporter
+  when: systemd_check|failed
+  tags:
+    - service
 
 - name: copy blackbox config files
   copy:
@@ -93,8 +120,13 @@
     mode: 0644
   notify:
     - reload blackbox_exporter
+    - restart blackbox_exporter
+  tags:
+    - configure
 
 - name: ensure blackbox_exporter service is enabled
   service:
     name: blackbox_exporter
     enabled: yes
+  tags:
+    - service

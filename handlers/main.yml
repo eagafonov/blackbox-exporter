@@ -9,3 +9,4 @@
   service:
     name: blackbox_exporter
     state: reloaded
+  when: systemd_check is defined and systemd_check|succeeded
